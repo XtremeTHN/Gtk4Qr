@@ -11,7 +11,6 @@
           ps: with ps; [
             pygobject3
             opencv4
-            numpy
           ]
         )
       );
