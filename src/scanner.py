@@ -20,7 +20,6 @@ class Scanner(GObject.Object):
         "error": (GObject.SIGNAL_RUN_FIRST, None, (str,)),
     }
 
-    # pixbuf = GObject.Property(type=GdkPixbuf.Pixbuf)
     outline_qr = GObject.Property(type=bool, default=False)
     cam: cv2.VideoCapture = None
     pixbuf: GdkPixbuf.Pixbuf = None
@@ -33,12 +32,18 @@ class Scanner(GObject.Object):
 
         self.cancellable = None
 
-    def set_widget(self, widget, callback=None):
+    def set_widget(self, widget: Gtk.Widget, callback=None):
         widget.add_tick_callback(self.iter)
         if callback:
             widget.add_tick_callback(callback, self)
 
+    def frame_is_null(self, frame):
+        return isinstance(frame, type(None))
+
     def get_pixbuf(self, frame: cv2.typing.MatLike):
+        if self.frame_is_null(frame):
+            return
+
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         data = frame.tobytes()
@@ -62,14 +67,16 @@ class Scanner(GObject.Object):
             self.cam.release()
             raise Exception("No camera connected")
 
-    def read(self):
+    def read_frame(self) -> cv2.typing.MatLike:
         _, frame = self.cam.read()
 
-        if isinstance(frame, type(None)):
+        self.pixbuf = self.get_pixbuf(frame)
+        return frame
+
+    def try_detect(self, frame: cv2.typing.MatLike) -> bool:
+        if self.frame_is_null(frame):
             print("frame is none")
             return False
-
-        self.pixbuf = self.get_pixbuf(frame)
 
         ret, points = self.decoder.detect(frame)
 
@@ -100,7 +107,9 @@ class Scanner(GObject.Object):
         while cancellable.is_cancelled() is False and self.cam.isOpened():
             self.frame_queue.get(block=True)
 
-            if self.read():
+            frame = self.read_frame()
+
+            if self.try_detect(frame):
                 break
 
     def finalize(self):
