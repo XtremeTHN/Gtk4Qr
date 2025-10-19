@@ -2,7 +2,7 @@ pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 moduledir = pkgdatadir / 'dbusqrdecoder'
 
 python = import('python')
-python_i = python.find_installation('python3', modules: ['dbus', 'gi'])
+python_i = python.find_installation('python3', modules: ['gi'])
 
 conf = configuration_data()
 conf.set('PYTHON', python_i.full_path())

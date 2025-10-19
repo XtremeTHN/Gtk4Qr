@@ -28,7 +28,8 @@ class QrPage(Adw.NavigationPage):
         self.picture = Gtk.Picture.new()
         frame = Gtk.Frame(child=self.picture)
 
-        qr.set_widget(self.picture, self.on_frame)
+        qr.set_widget(self.picture)
+        qr.bind_property("paintable", self.picture, "paintable")
 
         btt = Gtk.Button(css_classes=["pill"], label="Stop")
 
@@ -42,14 +43,6 @@ class QrPage(Adw.NavigationPage):
         self.connect("hiding", lambda *_: self.cancellable.cancel())
 
         self.start_qr_scanning(qr)
-
-    def on_frame(self, _, frame, qr):
-        if not qr.pixbuf:
-            return True
-
-        txt = Gdk.Texture.new_for_pixbuf(qr.pixbuf)
-        self.picture.set_paintable(txt)
-        return True
 
     def start_qr_scanning(self, qr):
         self.cancellable = Gio.Cancellable.new()

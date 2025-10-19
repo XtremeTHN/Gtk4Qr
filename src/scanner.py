@@ -2,7 +2,7 @@ import cv2
 import queue
 import threading
 
-from gi.repository import GObject, GdkPixbuf, Gtk, Gio
+from gi.repository import GObject, GLib, Gdk, Gtk, Gio
 
 
 def thread(func):
@@ -22,8 +22,8 @@ class Scanner(GObject.Object):
 
     outline_qr = GObject.Property(type=bool, default=False)
     cam: cv2.VideoCapture = None
-    pixbuf: GdkPixbuf.Pixbuf = None
     frame_queue = queue.Queue()
+    paintable = GObject.Property(type=Gdk.MemoryTexture)
 
     def __init__(self):
         super().__init__()
@@ -40,7 +40,7 @@ class Scanner(GObject.Object):
     def frame_is_null(self, frame):
         return isinstance(frame, type(None))
 
-    def get_pixbuf(self, frame: cv2.typing.MatLike):
+    def get_texture(self, frame: cv2.typing.MatLike):
         if self.frame_is_null(frame):
             return
 
@@ -50,15 +50,13 @@ class Scanner(GObject.Object):
 
         if not data:
             return
-
-        return GdkPixbuf.Pixbuf.new_from_data(
-            data,
-            GdkPixbuf.Colorspace.RGB,
-            False,
-            8,
+        
+        return Gdk.MemoryTexture.new(
             frame.shape[1],
             frame.shape[0],
-            frame.shape[1] * frame.shape[2],
+            Gdk.MemoryFormat.R8G8B8,
+            GLib.Bytes.new(data),
+            frame.shape[1] * frame.shape[2]
         )
 
     def open_camera(self):
@@ -70,7 +68,7 @@ class Scanner(GObject.Object):
     def read_frame(self) -> cv2.typing.MatLike:
         _, frame = self.cam.read()
 
-        self.pixbuf = self.get_pixbuf(frame)
+        self.paintable = self.get_texture(frame)
         return frame
 
     def try_detect(self, frame: cv2.typing.MatLike) -> bool:
@@ -86,7 +84,7 @@ class Scanner(GObject.Object):
         try:
             content, _ = self.decoder.decode(frame, points)
         except Exception as e:
-            self.emit("error", "Error while decoding data: ", " ".join(e.args))
+            self.emit("error", "Error while decoding data: " + " ".join(e.args))
 
         if content == "":
             return False
